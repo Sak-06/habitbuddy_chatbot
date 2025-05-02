@@ -5,6 +5,9 @@ import os
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEndpoint
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 DB_FAISS_PATH = "vectorstore/db_faiss"
@@ -49,7 +52,7 @@ def main():
         Answer the question directly. Anser should be of length upto 50-60 words and to the point. Don't do  small talk or chit chat."""
 
         HUGGINGFACE_REPO_ID= "mistralai/Mistral-7B-Instruct-v0.3"
-        HF_TOKEN =os.environ.get("HF_TOKEN")
+        HF_TOKEN =os.getenv("HF_TOKEN")
         
 
         try: 
