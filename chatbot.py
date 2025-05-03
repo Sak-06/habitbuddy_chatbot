@@ -34,6 +34,26 @@ def load_llm(huggingface_repo, HF_TOKEN):
     )
     return llm
 def main():
+    st.set_page_config(layout="wide")
+    st.markdown("""
+    <style>
+        /* Full width input */
+        .stChatInput > div {
+            width: 100% !important;
+        }
+        /* Prevent chat bubbles from overflowing */
+        .stChatMessage {
+            word-wrap: break-word;
+        }
+        /* Adjust padding for mobile */
+        @media (max-width: 768px) {
+            .main .block-container {
+                padding: 1rem 1rem;
+            }
+        }
+    </style>
+""", unsafe_allow_html=True)
+
     st.title("HabitBuddy: Your Personal Medical Assistant")
 
     if 'messages' not in st.session_state:
