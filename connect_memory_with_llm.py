@@ -1,23 +1,26 @@
 import os
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_huggingface import HuggingFaceEndpoint
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.llms import HuggingFaceHub
 from langchain_core.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import FAISS
-
-
+from transformers import pipeline
+from langchain_community.llms import HuggingFacePipeline
+from dotenv import load_dotenv
+load_dotenv()
 #Step 1: Setup LLM (Mistral with huggingface)
 
-HF_TOKEN = os.environ.get("HF_TOKEN")
-HUGGINGFACE_REPO_ID= "mistralai/Mistral-7B-Instruct-v0.3"
+local_pipeline = pipeline(
+    "text2text-generation",
+    model="google/flan-t5-base",
+    device=0,  # Use GPU if available
+    max_length=200,
+    temperature=0.7,
+)
 
-def load_llm(huggingface_repo):
-    llm=HuggingFaceEndpoint(
-        repo_id= huggingface_repo,
-        task="text-generation",
-        temperature=0.5,
-        model_kwargs={"token": HF_TOKEN,
-                      "max_length": 512}
+def load_llm():
+    llm=HuggingFacePipeline(
+        pipeline=local_pipeline
     )
     return llm
 
@@ -42,7 +45,7 @@ db=FAISS.load_local(DB_FAISS_PATH, embedding_model, allow_dangerous_deserializat
 
 #create QA chain
 qa_chain= RetrievalQA.from_chain_type(
-    llm=load_llm(HUGGINGFACE_REPO_ID),
+    llm=load_llm(),
     chain_type="stuff",
     retriever=db.as_retriever(search_kwargs={"k": 3}),
     return_source_documents=True,
