@@ -48,7 +48,7 @@ def set_custom_prompt():
 
 # Load database
 DB_FAISS_PATH = "vectorstore/db_faiss"
-embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L6-v2")
 db = FAISS.load_local(DB_FAISS_PATH, embedding_model, allow_dangerous_deserialization=True)
 
 # Create QA chain

@@ -14,7 +14,7 @@ load_dotenv()
 app= Flask(__name__)
 DB_FAISS_PATH = "vectorstore/db_faiss"
 
-embeddingmodel= HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+embeddingmodel= HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-MiniLM-L3-v2")
 vectorstore= FAISS.load_local(DB_FAISS_PATH, embeddingmodel, allow_dangerous_deserialization=True)
 
 custom_prompt_template = """You must answer the question using ONLY the provided context. 
