@@ -1,4 +1,4 @@
-import streamlit as st
+from flask import Flask, request, jsonify
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 import os
@@ -9,14 +9,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
+app= Flask(__name__)
 DB_FAISS_PATH = "vectorstore/db_faiss"
-@st.cache_resource
-def get_vectorstore():
-    embeddingmodel= HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    db= FAISS.load_local(DB_FAISS_PATH, embeddingmodel, allow_dangerous_deserialization=True)
-    return db
 
+embeddingmodel= HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+db= FAISS.load_local(DB_FAISS_PATH, embeddingmodel, allow_dangerous_deserialization=True)
+
+custom_prompt_template = """You must answer the question using ONLY the provided context. 
+If the context doesn't contain the answer, say "I don't have any advice for that."
+
+CONTEXT: {context}
+
+QUESTION: {question}
+
+REQUIREMENTS:
+1. Answer must come DIRECTLY from the context
+2. If about medical symptoms, include important warnings
+3. Maximum 10 sentences
+ Use the following context to answer the question.
+Provide a concise, practical answer based on the context."
+
+Context: {context}
+Question: {question}
+
+Answer:"""
 def set_custom_prompt(custom_prompt_template):
     prompt = PromptTemplate(
         template=custom_prompt_template,
@@ -24,78 +40,40 @@ def set_custom_prompt(custom_prompt_template):
     )
     return prompt
 
-def load_llm(huggingface_repo, HF_TOKEN):
+def load_llm():
+    huggingface_repo= "mistralai/Mistral-7B-Instruct-v0.3"
+    hf_token =os.getenv("HF_TOKEN")
+
     llm=HuggingFaceEndpoint(
         repo_id= huggingface_repo,
         task="text-generation",
         temperature=0.5,
-        model_kwargs={"token": HF_TOKEN,
+        model_kwargs={"token": hf_token,
                       "max_length": 512}
     )
     return llm
-def main():
-    st.set_page_config(layout="wide")
-    st.markdown("""
-    <style>
-        /* Full width input */
-        .stChatInput > div {
-            width: 100% !important;
-        }
-        /* Prevent chat bubbles from overflowing */
-        .stChatMessage {
-            word-wrap: break-word;
-        }
-        /* Adjust padding for mobile */
-        @media (max-width: 768px) {
-            .main .block-container {
-                padding: 1rem 1rem;
-            }
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-    st.title("HabitBuddy: Your Personal Medical Assistant")
-
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
-    for message in st.session_state.messages:
-        st.chat_message(message["role"]).markdown(message["content"])
-    prompt=st.chat_input(" Ask me about habits, health, and wellness!")
-    if prompt:
-        st.chat_message("user").markdown(prompt)
-        st.session_state.messages.append({"role": "user", "content": prompt})
-
-        custom_prompt_template = """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know. Don't try to make up an answer.Don't provide anything out of the context
-        Context: {context}
-        Question: {question}
-
-        Answer the question directly. Anser should be of length upto 50-60 words and to the point. Don't do  small talk or chit chat."""
-
-        HUGGINGFACE_REPO_ID= "mistralai/Mistral-7B-Instruct-v0.3"
-        HF_TOKEN =os.getenv("HF_TOKEN")
-        
-
-        try: 
-            vectorstore = get_vectorstore()
-            if vectorstore is None:
-                st.error("Error loading vectorstore.")
-            qa_chain= RetrievalQA.from_chain_type(
-                    llm= load_llm(HUGGINGFACE_REPO_ID, HF_TOKEN),
-                    chain_type="stuff",
-                    retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+llm= load_llm()
+qa_chain= RetrievalQA.from_chain_type(
+                    llm= llm,
+                    chain_type= "stuff",
+                    retriever= vectorstore.as_retriever(search_kwargs={"k": 3}),
                     return_source_documents=True,
                     chain_type_kwargs={"prompt": set_custom_prompt(custom_prompt_template)}
-                )       
-
-            response= qa_chain.invoke({"query": prompt})
-            result= response["result"]
-            source_documents= response["source_documents"]
-            result_to_show = result
-            st.chat_message("assistant").markdown(result_to_show)
-            st.session_state.messages.append({"role": "assistant", "content": result_to_show})
-        except Exception as e:
-            st.error(f"Error: {e}")
-            
+                )
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    user_message = data.get("message")
+    if not user_message:
+        return jsonify({"error": "No message provided"}), 400
+    try:
+        response = qa_chain.invoke({"query" : user_message})
+        reply = response["result"]
+        return jsonify({"reply": reply})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+         
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port =7860)
     
