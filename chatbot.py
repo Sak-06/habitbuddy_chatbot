@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 import os
 from transformers import pipeline
