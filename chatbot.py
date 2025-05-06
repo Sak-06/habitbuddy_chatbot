@@ -2,8 +2,10 @@ from flask import Flask, request, jsonify
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA
 import os
+from transformers import pipeline
 from langchain_core.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
+from langchain_community.llms import HuggingFacePipeline
 from langchain_huggingface import HuggingFaceEndpoint
 from dotenv import load_dotenv
 
@@ -41,17 +43,15 @@ def set_custom_prompt(custom_prompt_template):
     return prompt
 
 def load_llm():
-    huggingface_repo= "mistralai/Mistral-7B-Instruct-v0.3"
-    hf_token =os.getenv("HF_TOKEN")
-
-    llm=HuggingFaceEndpoint(
-        repo_id= huggingface_repo,
-        task="text-generation",
-        temperature=0.5,
-        model_kwargs={"token": hf_token,
-                      "max_length": 512}
+    local_pipeline = pipeline(
+        "text2text-generation",
+        model="google/flan-t5-base",
+        device=0,  # Use GPU if available
+        max_length=200,
+        temperature=0.7,
+        do_sample=True  
     )
-    return llm
+    return HuggingFacePipeline(pipeline=local_pipeline)
 llm= load_llm()
 qa_chain= RetrievalQA.from_chain_type(
                     llm= llm,
